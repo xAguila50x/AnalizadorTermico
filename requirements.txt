@@ -1,0 +1,13 @@
+# Interfaz Gráfica
+customtkinter>=5.2.0
+
+# Procesamiento de Imágenes y Visualización
+Pillow>=10.0.0
+opencv-python>=4.8.0
+matplotlib>=3.7.0
+
+# Cálculo Numérico y Matrices
+numpy>=1.24.0
+
+# Estándar Médico DICOM
+pydicom>=2.4.0
