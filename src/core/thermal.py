@@ -46,7 +46,7 @@ def analizar_temperaturas(
     Parámetros:
         ruta_imagen_original: La ruta donde está la foto FLIR (.jpg).
         ruta_mascara: La ruta donde está la máscara dibujada o generada (.png).
-        user_info: Diccionario con los datos del paciente (Nombre, Edad, Fecha, Hora).
+        user_info: Diccionario con los datos del paciente (Nombre, Edad, Peso, Altura, Fecha, Hora).
         exiftool_path: (Opcional) La ruta a 'exiftool.exe'. Si no se pasa, la busca solo.
 
     Retorna:
@@ -220,6 +220,8 @@ def analizar_temperaturas(
         info_text = (
             f"Nombre: {user_info.get('Nombre', 'N/A')}   |   "
             f"Edad: {user_info.get('Edad', 'N/A')}   |   "
+            f"Peso: {user_info.get('Peso') or 'N/A'} kg   |   "
+            f"Altura: {user_info.get('Altura') or 'N/A'} cm\n"
             f"Fecha: {user_info.get('Fecha', 'N/A')}   |   "
             f"Hora: {user_info.get('Hora', 'N/A')}"
         )

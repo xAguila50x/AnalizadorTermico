@@ -26,7 +26,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from src.config import ALTURA_IMAGEN_VISUALIZACION, get_icon_path
 from src.core.thermal import analizar_temperaturas
 from src.core.segmentation import segmentar_interactivo, generar_mascara_por_umbral
-from src.ui.dialogs import show_segmentation_options_dialog
+from src.core.SegmentacionPechoBeta import proponer_region_pecho, guardar_mascara_pecho
+from src.ui.dialogs import show_segmentation_options_dialog, show_mask_preview_dialog
 from src.ui.spectrum_window import VentanaEspectro
 from src.ui.dicom_window import VentanaExportarDicom
 
@@ -197,13 +198,21 @@ class App(ctk.CTk):
         self.entry_hora = ctk.CTkEntry(info_frame)
         self.entry_hora.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
 
+        ctk.CTkLabel(info_frame, text="Peso (kg):").grid(row=5, column=0, padx=5, pady=5, sticky="w")
+        self.entry_peso = ctk.CTkEntry(info_frame)
+        self.entry_peso.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
+
+        ctk.CTkLabel(info_frame, text="Altura (cm):").grid(row=6, column=0, padx=5, pady=5, sticky="w")
+        self.entry_altura = ctk.CTkEntry(info_frame)
+        self.entry_altura.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
+
         # Botón para no tener que escribir la fecha y hora a mano
         btn_now = ctk.CTkButton(
             info_frame,
             text="Insertar Fecha y Hora Actual",
             command=self._fill_current_datetime,
         )
-        btn_now.grid(row=5, column=0, columnspan=2, padx=5, pady=10, sticky="ew")
+        btn_now.grid(row=7, column=0, columnspan=2, padx=5, pady=10, sticky="ew")
         info_frame.grid_columnconfigure(1, weight=1)
 
         # SECCIÓN C: Resultados numéricos y botones de descarga
@@ -367,6 +376,7 @@ class App(ctk.CTk):
             on_auto=self.iniciar_segmentacion_automatica,
             on_manual=self.iniciar_segmentacion_manual,
             on_load=self.cargar_mascara_existente,
+            on_auto_beta=self.iniciar_segmentacion_automatica_beta,
         )
 
     def iniciar_segmentacion_manual(self):
@@ -413,6 +423,39 @@ class App(ctk.CTk):
         """Llama a la función de segmentación automática ubicada en src.core.segmentation."""
         user_info_temp = {"Nombre": "", "Edad": "", "Fecha": "", "Hora": ""}
         return generar_mascara_por_umbral(self.ruta_imagen_original, umbral, user_info_temp)
+
+    def iniciar_segmentacion_automatica_beta(self):
+        """
+        Propone la región del PECHO de forma adaptativa (según el encuadre de
+        la foto, sin pedir temperatura), abre la vista previa para que el
+        usuario la ajuste y, si la acepta, guarda la máscara y habilita el
+        análisis. Si prefiere, puede redibujarla a mano desde la misma vista.
+        """
+        mascara = proponer_region_pecho(self.ruta_imagen_original)
+        if mascara is None:
+            messagebox.showerror(
+                "Error", "No se pudo leer la imagen para proponer la región del pecho."
+            )
+            return
+
+        accion, mascara_ajustada = show_mask_preview_dialog(
+            self, self.ruta_imagen_original, mascara
+        )
+
+        if accion == "redibujar":
+            self.iniciar_segmentacion_manual()
+            return
+        if accion != "aceptar" or mascara_ajustada is None:
+            return
+
+        ruta_mascara = guardar_mascara_pecho(self.ruta_imagen_original, mascara_ajustada)
+        if not ruta_mascara:
+            messagebox.showerror("Error", "No se pudo guardar la máscara del pecho.")
+            return
+
+        self.ruta_mascara = ruta_mascara
+        self.mostrar_imagen_en_label(self.ruta_mascara, self.lbl_mascara)
+        self.btn_analizar.configure(state="normal")
 
     def cargar_mascara_existente(self):
         """Permite seleccionar un archivo PNG en blanco y negro ya guardado en la computadora."""
@@ -463,6 +506,8 @@ class App(ctk.CTk):
         user_info = {
             "Nombre": self.entry_nombre.get(),
             "Edad": self.entry_edad.get(),
+            "Peso": self.entry_peso.get(),
+            "Altura": self.entry_altura.get(),
             "Fecha": self.entry_fecha.get(),
             "Hora": self.entry_hora.get(),
         }
@@ -611,6 +656,10 @@ class App(ctk.CTk):
             metadatos_mock = self.metadatos_flir or {"CameraModel": "FLIR E6"}
             info_paciente = {
                 "Nombre": self.entry_nombre.get(),
+                "Edad": self.entry_edad.get(),
+                "Peso": self.entry_peso.get(),
+                "Altura": self.entry_altura.get(),
                 "Fecha": self.entry_fecha.get(),
+                "Hora": self.entry_hora.get(),
             }
             VentanaExportarDicom(self, self.matriz_temp_original, metadatos_mock, info_paciente)

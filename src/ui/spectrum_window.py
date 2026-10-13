@@ -269,7 +269,7 @@ class VentanaEspectro(ctk.CTkToplevel):
             if not metadatos:
                 metadatos = getattr(self.master_app, "metadatos_flir_actual", {"Model": "Unknown"})
 
-            # Leemos el nombre del paciente desde la pantalla principal si existe
+            # Leemos los datos del paciente desde la pantalla principal si existen
             nombre = "ANONIMO"
             if hasattr(self.master_app, "entry_nombre"):
                 nombre = self.master_app.entry_nombre.get()
@@ -278,16 +278,35 @@ class VentanaEspectro(ctk.CTkToplevel):
             if hasattr(self.master_app, "entry_edad"):
                 edad = self.master_app.entry_edad.get()
 
+            peso = ""
+            if hasattr(self.master_app, "entry_peso"):
+                peso = self.master_app.entry_peso.get()
+
+            altura = ""
+            if hasattr(self.master_app, "entry_altura"):
+                altura = self.master_app.entry_altura.get()
+
             fecha = datetime.now().strftime("%Y-%m-%d")
             if hasattr(self.master_app, "entry_fecha") and self.master_app.entry_fecha.get().strip():
                 fecha = self.master_app.entry_fecha.get().strip()
+
+            hora = ""
+            if hasattr(self.master_app, "entry_hora"):
+                hora = self.master_app.entry_hora.get().strip()
 
             # Abrimos la ventana de DICOM
             VentanaExportarDicom(
                 self,
                 self.matriz_temp_local,
                 metadatos,
-                {"Nombre": nombre, "Edad": edad, "Fecha": fecha},
+                {
+                    "Nombre": nombre,
+                    "Edad": edad,
+                    "Peso": peso,
+                    "Altura": altura,
+                    "Fecha": fecha,
+                    "Hora": hora,
+                },
                 self.resultados_energia,
             )
         except Exception as e:

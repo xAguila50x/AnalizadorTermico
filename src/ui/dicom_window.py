@@ -17,6 +17,34 @@ from src.config import get_icon_path
 from src.core.dicom import generar_archivo_dicom
 
 
+def _fecha_a_dicom(valor, respaldo: datetime) -> str:
+    """
+    Convierte la fecha del formulario ('dd/mm/yyyy' o 'yyyy-mm-dd') al formato
+    DICOM 'yyyymmdd'. Si está vacía o no se puede interpretar, usa la fecha actual.
+    """
+    valor = (valor or "").strip()
+    for formato in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y%m%d"):
+        try:
+            return datetime.strptime(valor, formato).strftime("%Y%m%d")
+        except ValueError:
+            continue
+    return respaldo.strftime("%Y%m%d")
+
+
+def _hora_a_dicom(valor, respaldo: datetime) -> str:
+    """
+    Convierte la hora del formulario ('hh:mm:ss AM/PM' o 'hh:mm:ss') al formato
+    DICOM 'HHMMSS'. Si está vacía o no se puede interpretar, usa la hora actual.
+    """
+    valor = (valor or "").strip()
+    for formato in ("%I:%M:%S %p", "%I:%M %p", "%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(valor, formato).strftime("%H%M%S")
+        except ValueError:
+            continue
+    return respaldo.strftime("%H%M%S")
+
+
 class VentanaExportarDicom(ctk.CTkToplevel):
     """
     Ventana flotante (CTkToplevel) con un formulario con barra de desplazamiento
@@ -66,6 +94,20 @@ class VentanaExportarDicom(ctk.CTkToplevel):
         # Si ya escribieron el nombre en la pantalla anterior, lo usamos por defecto
         nombre_paciente = info_paciente.get("Nombre", "").strip() or "ANONIMO"
 
+        # Precargamos peso, altura (cm -> metros para el tag estándar PatientSize)
+        # y fecha/hora del paciente; todos quedan editables en el formulario.
+        peso = str(info_paciente.get("Peso", "") or "").strip()
+        altura_cm = str(info_paciente.get("Altura", "") or "").strip()
+        altura_m = ""
+        if altura_cm:
+            try:
+                altura_m = f"{float(altura_cm) / 100.0:.2f}"
+            except ValueError:
+                altura_m = altura_cm
+
+        study_date = _fecha_a_dicom(info_paciente.get("Fecha", ""), ahora)
+        study_time = _hora_a_dicom(info_paciente.get("Hora", ""), ahora)
+
         # -------------------------------------------------------------------
         # Lista de campos estándar requeridos por DICOM:
         # Formato: "NombreDelTag": (ValorPorDefecto, "TextoDeGuía")
@@ -76,15 +118,15 @@ class VentanaExportarDicom(ctk.CTkToplevel):
             "PatientBirthDate": ("19900101", "AAAAMMDD"),
             "PatientAge": (str(info_paciente.get("Edad", "")), "Auto"),
             "PatientSex": ("O", "M/F/O"),
-            "PatientWeight": ("0", "Kg"),
-            "PatientHeight": ("0", "cm"),
+            "PatientWeight": (peso, "kg"),
+            "PatientSize": (altura_m, "m"),
             "PatientAddress": ("Desconocida", "Direccion"),
             "StudyID": ("EST-001", "ID"),
-            "StudyDate": (ahora.strftime("%Y%m%d"), "Fecha"),
-            "StudyTime": (ahora.strftime("%H%M%S"), "Hora"),
+            "StudyDate": (study_date, "Fecha"),
+            "StudyTime": (study_time, "Hora"),
             "StudyDescription": ("ANALISIS TERMOGRAFICO", "Desc"),
-            "SeriesDate": (ahora.strftime("%Y%m%d"), "Fecha Serie"),
-            "SeriesTime": (ahora.strftime("%H%M%S"), "Hora Serie"),
+            "SeriesDate": (study_date, "Fecha Serie"),
+            "SeriesTime": (study_time, "Hora Serie"),
             "SeriesDescription": ("PROCESAMIENTO DE ANILLOS", "Desc Serie"),
             "SeriesNumber": ("1", "Serie #"),
             "InstitutionName": ("LABORATORIO TÉRMICO", "Clínica"),
